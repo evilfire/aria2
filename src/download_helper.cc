@@ -255,12 +255,21 @@ createBtMagnetRequestGroup(const std::string& magnetLink,
     bittorrent::ValueBaseBencodeParser parser;
     auto torrent = parseFile(parser, torrentFilename);
     if (torrent) {
-      A2_LOG_NOTICE(fmt("BitTorrent metadata was loaded from %s",
-                        torrentFilename.c_str()));
       auto rg = createBtRequestGroup(torrentFilename, optionTemplate, {},
                                      torrent.get());
-      rg->setMetadataInfo(createMetadataInfo(rg->getGroupId(), magnetLink));
-      return rg;
+      const auto& actualInfoHash =
+          bittorrent::getTorrentAttrs(rg->getDownloadContext())->infoHash;
+
+      if (torrentAttrs->infoHash == actualInfoHash) {
+        A2_LOG_NOTICE(fmt("BitTorrent metadata was loaded from %s",
+                          torrentFilename.c_str()));
+        rg->setMetadataInfo(createMetadataInfo(rg->getGroupId(), magnetLink));
+        return rg;
+      }
+
+      A2_LOG_WARN(
+          fmt("BitTorrent metadata loaded from %s has unexpected infohash %s\n",
+              torrentFilename.c_str(), util::toHex(actualInfoHash).c_str()));
     }
   }
 
